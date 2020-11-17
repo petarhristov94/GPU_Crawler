@@ -9,7 +9,7 @@ import requests
 import pandas
 
 chrome_profile_path = r'C:\Users\phris\AppData\Local\Google\Chrome\User Data'
-folder_path = r'E:\PyCharm Projects\GPU Scalper'
+folder_path = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
 
 urls = [
     'https://www.alternate.de/Outlet/Grafikkarten/RTX-3070',
