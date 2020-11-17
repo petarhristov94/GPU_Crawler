@@ -237,6 +237,10 @@ def notebooksbilliger(response, url):
                 print("☠ Non existent URL: " + url)
                 driver.close()
                 return products
+            try:
+                driver.find_element_by_xpath('/html/body/div[2]/div[4]/div[2]/div/div[2]/div[1]/button').click()
+            except Exception as e:
+                print("Couldn't bypass Cookies Message.")
             soup = BeautifulSoup(driver.page_source, features="html.parser")
         else:
             soup = BeautifulSoup(response.text, features="html.parser")
