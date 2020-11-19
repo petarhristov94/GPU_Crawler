@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/GPU Scalper.iml" filepath="$PROJECT_DIR$/.idea/GPU Scalper.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/GPU_Crawler.iml" filepath="$PROJECT_DIR$/.idea/GPU_Crawler.iml" />
     </modules>
   </component>
 </project>
