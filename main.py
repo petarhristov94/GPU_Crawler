@@ -1,6 +1,5 @@
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as ec
@@ -17,11 +16,14 @@ DESKTOP_PATH = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
 XLSX_FILE_DATE = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
 XLSX_FILE_NAME = 'products_' + XLSX_FILE_DATE + '_.xlsx'
 XLSX_PATH = DESKTOP_PATH + '\\' + XLSX_FILE_NAME
-CRAWLER_DRIVER_PATH = DESKTOP_PATH + '\\' + 'crawler_chromedriver.exe'
+CRAWLER_DRIVER_PATH = r'D:\OMG\Custom WebDriver' + '\\' + 'chromedriver_first.exe'
 SOUND_CHEAP_ITEM = "cheap_item.wav"
 SCRIPT_START_TIME = datetime.now().strftime("%d.%m.%Y at %H:%M:%S")
-# crawl Websites every 120 seconds
-CRAWL_WEBSITES_SCHEDULE = 120.0
+# crawl Websites every 300 seconds
+CRAWL_WEBSITES_SCHEDULE = 300.0
+
+loop = False
+
 
 DATAFRAME_COLUMNS = ['Availability', 'Maker', 'Name', 'Chip', 'Price', 'Location', 'Buy Link']
 
@@ -38,10 +40,10 @@ CHIP_NAME_6900XT = 'AMD Radeon RX 6900 XT'
 PRICE_CHIP_DICT = {CHIP_NAME_3060: 0.0,
                    CHIP_NAME_3060Ti: 0.0,
                    CHIP_NAME_3070: 560.0,
-                   CHIP_NAME_3080: 720.0,
+                   CHIP_NAME_3080: 750.0,
                    CHIP_NAME_3090: 1510.0,
                    CHIP_NAME_6800: 600.0,
-                   CHIP_NAME_6800XT: 800.0,
+                   CHIP_NAME_6800XT: 750.0,
                    CHIP_NAME_6900: 0.0,
                    CHIP_NAME_6900XT: 1100.0}
 
@@ -56,12 +58,20 @@ urls = [
     'https://www.alternate.de/Grafikkarten/RX-6800',
     'https://www.alternate.de/Grafikkarten/RX-6800-XT',
     'https://www.alternate.de/Grafikkarten/RX-6900-XT',
+    'https://www.alternate.be/Hardware/Grafische-kaarten/AMD/Radeon-RX/RX-6800',
     'https://www.alternate.be/Hardware/Grafische-kaarten/AMD/Radeon-RX/RX-6800-XT',
-    'https://www.alternate.be/Hardware/Grafische-kaarten/AMD/Radeon-RX/RX-6800-XT',
-    'https://www.alternate.be/html/product/listing.html?navId=1534775483808&navId=1542720036741&navId=1563874975272&lv=list&sort=RELEVANCE&order=ASC&listingTitle=NVIDIA+GeForce+RTX+grafische+kaarten&tk=7&lk=20127',
+    'https://www.alternate.be/Hardware/Grafische-kaarten/AMD/Radeon-RX/RX-6900-XT',
+    'https://www.alternate.be/Hardware/Grafische-kaarten/NVIDIA/RTX-3070',
+    'https://www.alternate.be/Hardware/Grafische-kaarten/NVIDIA/RTX-3080',
+    'https://www.alternate.be/Hardware/Grafische-kaarten/NVIDIA/RTX-3090',
+    'https://www.alternate.be/Outlet/Hardware/Grafische-kaarten',
+    'https://www.alternate.nl/Outlet/Grafische-kaarten',
     'https://www.alternate.nl/Grafische-kaarten/RX-6800',
     'https://www.alternate.nl/Grafische-kaarten/RX-6800-XT',
-    'https://www.alternate.nl/Grafische-kaarten/GeForce-RTX-Gaming/html/listings/1534500258044?lk=21466&size=500&hideFilter=false',
+    'https://www.alternate.nl/Grafische-kaarten/RX-6900-XT',
+    'https://www.alternate.nl/Grafische-kaarten/RTX-3070',
+    'https://www.alternate.nl/Grafische-kaarten/RTX-3080',
+    'https://www.alternate.nl/Grafische-kaarten/RTX-3090',
     'https://www.notebooksbilliger.de/pc+hardware/grafikkarten/nvidia/geforce+rtx+3070+nvidia/page/1?sort=price&order=asc&availability=alle',
     'https://www.notebooksbilliger.de/pc+hardware/grafikkarten/nvidia/geforce+rtx+3080+nvidia/page/1?sort=price&order=asc&availability=alle',
     'https://www.notebooksbilliger.de/pc+hardware/grafikkarten/nvidia/geforce+rtx+3090+nvidia/page/1?sort=price&order=asc&availability=alle',
@@ -127,9 +137,9 @@ def crawlWebsite(url):
     if url.__contains__(STRING_ALTERNATE):
         products = alternate(response, url)
     elif url.__contains__(STRING_ALTERNATE_BE):
-        products = alternate(response, url)
+        products = alternate_be(response, url)
     elif url.__contains__(STRING_ALTERNATE_NL):
-        products = alternate(response, url)
+        products = alternate_nl(response, url)
     elif url.__contains__(STRING_MINDFACTORY):
         products = mindfactory(response, url)
     elif url.__contains__(STRING_NOTEBOOKSBILLIGER):
@@ -148,15 +158,15 @@ def alternate(response, url):
     print("▶ Working on: " + STRING_ALTERNATE + "   🌎 " + url)
     class_to_search = "listRow"
 
-    if response.status_code == 404:
+    if response.status_code == 404 or response.status_code == 502:
         print("☠ Page Not Found.")
     else:
         domain = response.request.url.replace(response.request.path_url, "")
         try:
             linkSortList = BeautifulSoup(response.text, features="html.parser").find(class_="list").attrs['href']
+            response = requests.get(domain + linkSortList)
         except:
             pass
-        response = requests.get(domain + linkSortList)
         # Check if REQUEST is being blocked
         if BeautifulSoup(response.text, features="html.parser").findAll(class_=class_to_search).__len__() == 0:
             print("⚡ Request blocked. Trying with Selenium...")
@@ -186,11 +196,12 @@ def alternate(response, url):
             for a in soup.findAll('div', attrs={'class': class_to_search}):
                 maker = a.find(class_='name').findAll('span')[0].text.strip()
                 name = a.find(class_='name').findAll('span')[1].text.strip().split(',', 1)[0]
+                maker = 'ZOTAC GAMING' if maker.upper().__contains__('ZOTAC') else maker
                 chip = getChipName(name)
                 price = float(a.find(class_='price right right10').text
                               .replace('-', '00').strip('€').strip('*').strip()
                               .replace('.', '').replace(',', '.'))
-                location = getDomainFromURL(url)
+                location = getDomainFromURL(url) + ' Outlet' if url.__contains__('Outlet') else getDomainFromURL(url)
                 buy = domain + a.find(class_='productLink').attrs['href']
                 tmp_avlb = a.find(class_='stockStatus').text
                 if tmp_avlb.__contains__("Auf Lager"):
@@ -209,7 +220,151 @@ def alternate(response, url):
                 pass
             print('☑ Done.\n')
         except Exception as e:
-            print("ⓧ Failed.")
+            print("ⓧ Failed.\n")
+    return products
+
+
+def alternate_nl(response, url):
+    products = []
+    print("▶ Working on: " + STRING_ALTERNATE_NL + "   🌎 " + url)
+    class_to_search = "listRow"
+
+    if response.status_code == 404 or response.status_code == 502:
+        print("☠ Page Not Found.")
+    else:
+        domain = response.request.url.replace(response.request.path_url, "")
+        try:
+            linkSortList = BeautifulSoup(response.text, features="html.parser").find(class_="list").attrs['href']
+            response = requests.get(domain + linkSortList)
+        except:
+            pass
+        # Check if REQUEST is being blocked
+        if BeautifulSoup(response.text, features="html.parser").findAll(class_=class_to_search).__len__() == 0:
+            print("⚡ Request blocked. Trying with Selenium...")
+            options = webdriver.ChromeOptions()
+            options.add_argument('--no-proxy-server')
+            options.add_argument("--window-position=-700,0")
+            options.add_argument("--window-size=576,1024")
+            options.add_argument('--blink-settings=imagesEnabled=false')
+            # options.add_argument('user-data-dir=' + chrome_profile_path)
+            driver = webdriver.Chrome(options=options)
+            try:
+                driver.get(url)
+            except Exception as e:
+                print("☠ Non existent URL: " + url)
+                driver.close()
+                return products
+            # Sort in a list
+            try:
+                driver.find_element_by_xpath('//*[@id="pageContent"]/div[4]/div[1]/div[2]/a[1]').click()
+            except Exception as e:
+                print("Sorting Button couldn't be clicked. Continue like that.")
+
+            soup = BeautifulSoup(driver.page_source, features="html.parser")
+        else:
+            soup = BeautifulSoup(response.text, features="html.parser")
+        try:
+            for a in soup.findAll('div', attrs={'class': class_to_search}):
+                maker = a.find(class_='name').findAll('span')[0].text.strip()
+                maker = 'ZOTAC GAMING' if maker.upper().__contains__('ZOTAC') else maker
+                name = a.find(class_='name').findAll('span')[1].text.strip().split(',', 1)[0].replace('grafische kaart',
+                                                                                                      '').strip()
+                chip = getChipName(name)
+                price = float(a.find(class_='price right right10').text
+                              .replace('-', '00').strip('€').strip('*').strip()
+                              .replace('.', '').replace(',', '.'))
+                location = getDomainFromURL(url) + ' Outlet' if url.__contains__('Outlet') else getDomainFromURL(url)
+                buy = domain + a.find(class_='productLink').attrs['href']
+                tmp_avlb = a.find(class_='stockStatus').text
+                if tmp_avlb.__contains__("Direct leverbaar"):
+                    available = 'YES'
+                elif tmp_avlb.__contains__("Pre-order") or tmp_avlb.__contains__("Preorder"):
+                    available = 'NO'
+                elif tmp_avlb.__contains__("Verwachte levertermijn") or tmp_avlb.__contains__("werkdagen"):
+                    available = 'SOON'
+                else:
+                    available = 'UNKNOWN'
+                product = Product(maker.upper(), name, chip, price, location, buy, available)
+                products.append(product)
+            try:
+                driver.close()
+            except UnboundLocalError as e:
+                pass
+            print('☑ Done.\n')
+        except Exception as e:
+            print("ⓧ Failed.\n")
+    return products
+
+
+def alternate_be(response, url):
+    products = []
+    print("▶ Working on: " + STRING_ALTERNATE_BE + "   🌎 " + url)
+    class_to_search = "listRow"
+
+    if response.status_code == 404 or response.status_code == 502:
+        print("☠ Page Not Found.")
+    else:
+        domain = response.request.url.replace(response.request.path_url, "")
+        try:
+            linkSortList = BeautifulSoup(response.text, features="html.parser").find(class_="list").attrs['href']
+            response = requests.get(domain + linkSortList)
+        except:
+            pass
+        # Check if REQUEST is being blocked
+        if BeautifulSoup(response.text, features="html.parser").findAll(class_=class_to_search).__len__() == 0:
+            print("⚡ Request blocked. Trying with Selenium...")
+            options = webdriver.ChromeOptions()
+            options.add_argument('--no-proxy-server')
+            options.add_argument("--window-position=-700,0")
+            options.add_argument("--window-size=576,1024")
+            options.add_argument('--blink-settings=imagesEnabled=false')
+            # options.add_argument('user-data-dir=' + chrome_profile_path)
+            driver = webdriver.Chrome(options=options)
+            try:
+                driver.get(url)
+            except Exception as e:
+                print("☠ Non existent URL: " + url)
+                driver.close()
+                return products
+            # Sort in a list
+            try:
+                driver.find_element_by_xpath('//*[@id="pageContent"]/div[4]/div[1]/div[2]/a[1]').click()
+            except Exception as e:
+                print("Sorting Button couldn't be clicked. Continue like that.")
+
+            soup = BeautifulSoup(driver.page_source, features="html.parser")
+        else:
+            soup = BeautifulSoup(response.text, features="html.parser")
+        try:
+            for a in soup.findAll('div', attrs={'class': class_to_search}):
+                maker = a.find(class_='name').findAll('span')[0].text.strip()
+                maker = 'ZOTAC GAMING' if maker.upper().__contains__('ZOTAC') else maker
+                name = a.find(class_='name').findAll('span')[1].text.strip().split(',', 1)[0].replace('grafische kaart',
+                                                                                                      '').strip()
+                chip = getChipName(name)
+                price = float(a.find(class_='price right right10').text
+                              .replace('-', '00').strip('€').strip('*').strip()
+                              .replace('.', '').replace(',', '.'))
+                location = getDomainFromURL(url) + ' Outlet' if url.__contains__('Outlet') else getDomainFromURL(url)
+                buy = domain + a.find(class_='productLink').attrs['href']
+                tmp_avlb = a.find(class_='stockStatus').text
+                if tmp_avlb.__contains__("Direct leverbaar"):
+                    available = 'YES'
+                elif tmp_avlb.__contains__("Pre-order") or tmp_avlb.__contains__("Preorder"):
+                    available = 'NO'
+                elif tmp_avlb.__contains__("Verwachte levertermijn") or tmp_avlb.__contains__("werkdagen"):
+                    available = 'SOON'
+                else:
+                    available = 'UNKNOWN'
+                product = Product(maker.upper(), name, chip, price, location, buy, available)
+                products.append(product)
+            try:
+                driver.close()
+            except UnboundLocalError as e:
+                pass
+            print('☑ Done.\n')
+        except Exception as e:
+            print("ⓧ Failed.\n")
     return products
 
 
@@ -218,7 +373,7 @@ def mindfactory(response, url):
     print("▶ Working on: " + STRING_MINDFACTORY + "   🌎 " + url)
     class_to_search = "p"
 
-    if response.status_code == 404:
+    if response.status_code == 404 or response.status_code == 502:
         print("☠ Page Not Found.")
     else:
         domain = response.request.url.replace(response.request.path_url, "")
@@ -244,6 +399,7 @@ def mindfactory(response, url):
         try:
             for a in soup.findAll('div', attrs={'class': class_to_search}):
                 maker = a.find(class_='pname').text.split('GB ', 1)[1].split('GeForce', 1)[0].strip()
+                maker = 'ZOTAC GAMING' if maker.upper().__contains__('ZOTAC') else maker
                 name = a.find(class_='pname').text.split(maker, 1)[1].split("GDDR")[0].strip()
                 chip = getChipName(name)
                 price = float(a.find(class_='pprice').text.replace('.', '')
@@ -268,7 +424,7 @@ def mindfactory(response, url):
                 pass
             print('☑ Done.\n')
         except Exception as e:
-            print("ⓧ Failed.")
+            print("ⓧ Failed.\n")
     return products
 
 
@@ -277,7 +433,7 @@ def notebooksbilliger(response, url):
     print("▶ Working on: " + STRING_NOTEBOOKSBILLIGER + "   🌎 " + url)
     class_to_search = "js-ado-product-click"
 
-    if response.status_code == 404:
+    if response.status_code == 404 or response.status_code == 502:
         print("☠ Page Not Found.")
     else:
         domain = response.request.url.replace(response.request.path_url, "")
@@ -309,9 +465,10 @@ def notebooksbilliger(response, url):
         try:
             for a in soup.findAll('div', attrs={'class': class_to_search}):
                 maker = a.find(class_='short_description').find('li').text.strip().split('GeForce', 1)[0].strip()
-                name = a.find(class_='short_description').find('li').text.strip().split(maker)[1].split('-', 1)[
-                    0].replace(
-                    'Grafikkarte', '').strip()
+                maker = 'ZOTAC GAMING' if maker.upper().__contains__('ZOTAC') else maker
+                name = \
+                a.find(class_='short_description').find('li').text.strip().split(maker)[1].split('-', 1)[0].split(
+                    'GDDR', 1)[0].replace('Grafikkarte', '').strip()
                 chip = getChipName(name)
                 price = float(a.find(class_='product-price__regular').attrs['data-price'])
                 location = getDomainFromURL(url)
@@ -333,7 +490,7 @@ def notebooksbilliger(response, url):
                 pass
             print('☑ Done.\n')
         except Exception as e:
-            print("ⓧ Failed.")
+            print("ⓧ Failed.\n")
     return products
 
 
@@ -342,8 +499,8 @@ def caseking(response, url):
     print("▶ Working on: " + STRING_CASEKING + "   🌎 " + url)
     class_to_search = "artbox"
 
-    if response.status_code == 404:
-        print("☠ Page Not Found.")
+    if response.status_code == 404 or response.status_code == 502:
+        print("☠ Page Not Found. \n")
     else:
         domain = response.request.url.replace(response.request.path_url, "")
         # Check if REQUEST is being blocked
@@ -368,8 +525,9 @@ def caseking(response, url):
 
         try:
             for a in soup.findAll('div', attrs={'class': class_to_search}):
-                maker = a.find(class_='ProductSubTitle').text.strip()
-                name = a.find(class_='ProductTitle').text.split(',', 1)[0].strip()
+                maker = soup.find(class_='ProductSubTitle').text.strip()
+                maker = 'ZOTAC GAMING' if maker.upper().__contains__('ZOTAC') else maker
+                name = a.find(class_='ProductTitle').text.replace(maker, '').split(',', 1)[0].strip()
                 chip = getChipName(name)
                 price = float(a.find(class_='price').text.replace('.', '')
                               .replace('€', '').replace('*', '')
@@ -391,7 +549,7 @@ def caseking(response, url):
                 pass
             print('☑ Done.\n')
         except Exception as e:
-            print("ⓧ Failed.")
+            print("ⓧ Failed.\n")
     return products
 
 
@@ -400,7 +558,7 @@ def cyberport(response, url):
     print("▶ Working on: " + STRING_CYBERPORT + "   🌎 " + url)
     class_to_search = "productArticle"
 
-    if response.status_code == 404:
+    if response.status_code == 404 or response.status_code == 502:
         print("☠ Page Not Found.")
     else:
         domain = response.request.url.replace(response.request.path_url, "")
@@ -430,6 +588,7 @@ def cyberport(response, url):
                     a.find(class_='productTitleName').text.replace('GeForce', '*').replace('AMD Radeon', '*').split('*',
                                                                                                                     1)[
                         0].strip().replace('.', '')
+                maker = 'ZOTAC GAMING' if maker.upper().__contains__('ZOTAC') else maker
                 name = a.find(class_='productTitleName').text.split(maker, 1)[1].split(
                     a.find('ul', class_='hidden-xs').findAll('li')[1].text[0:5].strip().replace(' ', ''))[0].strip()
                 chip = getChipName(name)
@@ -455,7 +614,7 @@ def cyberport(response, url):
                 pass
             print('☑ Done.\n')
         except Exception as e:
-            print("ⓧ Failed.")
+            print("ⓧ Failed.\n")
     return products
 
 
@@ -464,7 +623,7 @@ def conrad(response, url):
     print("▶ Working on: " + STRING_CONRAD + "   🌎 " + url)
     class_to_search = "searchResult"
 
-    if response.status_code == 404:
+    if response.status_code == 404 or response.status_code == 502:
         print("☠ Page Not Found.")
     else:
         domain = response.request.url.replace(response.request.path_url, "")
@@ -502,11 +661,10 @@ def conrad(response, url):
         try:
             for a in soup.findAll(class_=class_to_search):
                 maker = a.find(class_='searchResult__header').text.split('Grafikkarte', 1)[0].strip()
+                maker = 'ZOTAC GAMING' if maker.upper().__contains__('ZOTAC') else maker
                 name = \
-                    a.find(class_='product__title').text.split(maker)[1].replace('8 GB', '*').replace('10 GB',
-                                                                                                      '*').replace(
-                        '12 GB', '*').replace('16 GB', '*').replace('24 GB', '*').split('*', 1)[0].replace(
-                        'Grafikkarte Nvidia ', '').replace('Grafikkarte AMD Radeon ', '').strip()
+                    a.find(class_='product__title').text.split(maker)[1].replace('Grafikkarte Nvidia ', '').replace(
+                        'Grafikkarte AMD Radeon ', '').strip()
                 chip = getChipName(name)
                 price = float(a.find(class_='product__currentPrice').text.replace('.', '').replace('€', '').replace('*',
                                                                                                                     '').replace(
@@ -530,7 +688,7 @@ def conrad(response, url):
                 pass
             print('☑ Done.\n')
         except Exception as e:
-            print("ⓧ Failed.")
+            print("ⓧ Failed.\n")
     return products
 
 
@@ -684,10 +842,14 @@ def examineProducts(goodPrices):
 
 
 def main():
+    global loop
+    pointer_loop = True
     global SCRIPT_LAST_RUN_TIME
     SCRIPT_LAST_RUN_TIME = SCRIPT_START_TIME
     start = time.time()
-    while True:
+    while pointer_loop:
+        if not loop:
+            pointer_loop = False
         products = []
         df_tmp = createFirstDataFrame(products)
         subprocess.Popen("cls", shell=True).communicate()
@@ -707,9 +869,11 @@ def main():
         goodPrices = checkPrices(createDataFrame(products, None))
         examineProducts(goodPrices)
         SCRIPT_LAST_RUN_TIME = datetime.now().strftime("%d.%m.%Y at %H:%M:%S")
-        print(
-            "======================= Checking every " + CRAWL_WEBSITES_SCHEDULE.__str__() + " seconds ======================= ")
-        time.sleep(CRAWL_WEBSITES_SCHEDULE - ((time.time() - start) % CRAWL_WEBSITES_SCHEDULE))
+        if loop:
+            print("======================= Checking every " + CRAWL_WEBSITES_SCHEDULE.__str__() + " seconds ======================= ")
+            time.sleep(CRAWL_WEBSITES_SCHEDULE - ((time.time() - start) % CRAWL_WEBSITES_SCHEDULE))
+        else:
+            print("========================================================================= ")
 
 
 if __name__ == '__main__':
