@@ -159,7 +159,7 @@ def alternate(response, url):
     class_to_search = "listRow"
 
     if response.status_code == 404 or response.status_code == 502:
-        print("☠ Page Not Found.")
+        print("☠ Page Not Found.\n")
     else:
         domain = response.request.url.replace(response.request.path_url, "")
         try:
@@ -230,7 +230,7 @@ def alternate_nl(response, url):
     class_to_search = "listRow"
 
     if response.status_code == 404 or response.status_code == 502:
-        print("☠ Page Not Found.")
+        print("☠ Page Not Found.\n")
     else:
         domain = response.request.url.replace(response.request.path_url, "")
         try:
@@ -302,7 +302,7 @@ def alternate_be(response, url):
     class_to_search = "listRow"
 
     if response.status_code == 404 or response.status_code == 502:
-        print("☠ Page Not Found.")
+        print("☠ Page Not Found.\n")
     else:
         domain = response.request.url.replace(response.request.path_url, "")
         try:
@@ -374,7 +374,7 @@ def mindfactory(response, url):
     class_to_search = "p"
 
     if response.status_code == 404 or response.status_code == 502:
-        print("☠ Page Not Found.")
+        print("☠ Page Not Found.\n")
     else:
         domain = response.request.url.replace(response.request.path_url, "")
         # Check if REQUEST is being blocked
@@ -434,7 +434,7 @@ def notebooksbilliger(response, url):
     class_to_search = "js-ado-product-click"
 
     if response.status_code == 404 or response.status_code == 502:
-        print("☠ Page Not Found.")
+        print("☠ Page Not Found.\n")
     else:
         domain = response.request.url.replace(response.request.path_url, "")
         # Check if REQUEST is being blocked
@@ -559,7 +559,7 @@ def cyberport(response, url):
     class_to_search = "productArticle"
 
     if response.status_code == 404 or response.status_code == 502:
-        print("☠ Page Not Found.")
+        print("☠ Page Not Found.\n")
     else:
         domain = response.request.url.replace(response.request.path_url, "")
         # Check if REQUEST is being blocked
@@ -624,7 +624,7 @@ def conrad(response, url):
     class_to_search = "searchResult"
 
     if response.status_code == 404 or response.status_code == 502:
-        print("☠ Page Not Found.")
+        print("☠ Page Not Found.\n")
     else:
         domain = response.request.url.replace(response.request.path_url, "")
         # Check if REQUEST is being blocked
