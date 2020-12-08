@@ -1,3 +1,10 @@
+# ___________________________________________________________
+#
+# Written by Petar Hristov in November of 2020.
+# This code is available for free and is 100% open source.
+#
+# ___________________________________________________________
+
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -11,34 +18,49 @@ import requests
 import pandas
 import subprocess
 
-CHROME_PROFILE_PATH = r'C:\Users\phris\AppData\Local\Google\Chrome\User Data'
+# ATTENTION !!!
+# RUNNING THIS SCRIPT FROM cmd.exe MAY RESULT IN WARNINGS THAT YOU NEED TO FURTHER INSPECT.
+# FOR BEST PERFORMANCE USE YOUR IDE'S CONSOLE. I'M USING PyCharm.
+
+
+# ___________________________________________________________
+# SET THE CHROME DRIVER .EXE PATH LOCATION BELLOW
+CRAWLER_DRIVER_PATH = r'C:\EXAMPLE FOLDER' + '\\' + 'chromedriver.exe'
+# ___________________________________________________________
+
+
 DESKTOP_PATH = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
 XLSX_FILE_DATE = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
 XLSX_FILE_NAME = 'products_' + XLSX_FILE_DATE + '_.xlsx'
 XLSX_PATH = DESKTOP_PATH + '\\' + XLSX_FILE_NAME
-CRAWLER_DRIVER_PATH = r'D:\OMG\Custom WebDriver' + '\\' + 'chromedriver_first.exe'
+
 SOUND_CHEAP_ITEM = "cheap_item.wav"
 SCRIPT_START_TIME = datetime.now().strftime("%d.%m.%Y at %H:%M:%S")
-# crawl Websites every 300 seconds
-CRAWL_WEBSITES_SCHEDULE = 300.0
-
+# crawl Websites every 200 seconds
+CRAWL_WEBSITES_SCHEDULE = 200.0
 loop = False
-
 
 DATAFRAME_COLUMNS = ['Availability', 'Maker', 'Name', 'Chip', 'Price', 'Location', 'Buy Link']
 
 CHIP_NAME_3060 = 'NVIDIA GeForce RTX 3060'
 CHIP_NAME_3060Ti = 'NVIDIA GeForce RTX 3060 Ti'
 CHIP_NAME_3070 = 'NVIDIA GeForce RTX 3070'
+CHIP_NAME_3070Ti = 'NVIDIA GeForce RTX 3070 Ti'
 CHIP_NAME_3080 = 'NVIDIA GeForce RTX 3080'
+CHIP_NAME_3080Ti = 'NVIDIA GeForce RTX 3070 Ti'
 CHIP_NAME_3090 = 'NVIDIA GeForce RTX 3090'
+CHIP_NAME_3090Ti = 'NVIDIA GeForce RTX 3070 Ti'
+CHIP_NAME_6700 = 'AMD Radeon RX 6700'
+CHIP_NAME_6700XT = 'AMD Radeon RX 6700 XT'
 CHIP_NAME_6800 = 'AMD Radeon RX 6800'
 CHIP_NAME_6800XT = 'AMD Radeon RX 6800 XT'
 CHIP_NAME_6900 = 'AMD Radeon RX 6900'
 CHIP_NAME_6900XT = 'AMD Radeon RX 6900 XT'
 
+# PRICE_CHIP_DICT: IS A DICTIONARY CONTAINING THE CHIP_NAME (FROM ABOVE) AND YOUR THE PRICE THRESHOLD AS A FLOAT (XXX.0)
+# EDIT TO YOUR FITTING.
 PRICE_CHIP_DICT = {CHIP_NAME_3060: 0.0,
-                   CHIP_NAME_3060Ti: 0.0,
+                   CHIP_NAME_3060Ti: 500.0,
                    CHIP_NAME_3070: 560.0,
                    CHIP_NAME_3080: 750.0,
                    CHIP_NAME_3090: 1510.0,
@@ -47,11 +69,14 @@ PRICE_CHIP_DICT = {CHIP_NAME_3060: 0.0,
                    CHIP_NAME_6900: 0.0,
                    CHIP_NAME_6900XT: 1100.0}
 
+# INSIDE urls ADD THE WEBSITE LINKS THAT YOU'D LIKE TO CRAWL. EDIT TO YOUR FITTING.
 urls = [
+    'https://www.alternate.de/Outlet/Grafikkarten/RTX-3060-Ti',
     'https://www.alternate.de/Outlet/Grafikkarten/RTX-3070',
     'https://www.alternate.de/Outlet/Grafikkarten/RTX-3080',
     'https://www.alternate.de/Outlet/Grafikkarten/RTX-3090',
     'https://www.alternate.de/Outlet/Grafikkarten/AMD-Grafikkarten',
+    'https://www.alternate.de/Grafikkarten/RTX-3060-Ti',
     'https://www.alternate.de/Grafikkarten/RTX-3070',
     'https://www.alternate.de/Grafikkarten/RTX-3080',
     'https://www.alternate.de/Grafikkarten/RTX-3090',
@@ -61,6 +86,7 @@ urls = [
     'https://www.alternate.be/Hardware/Grafische-kaarten/AMD/Radeon-RX/RX-6800',
     'https://www.alternate.be/Hardware/Grafische-kaarten/AMD/Radeon-RX/RX-6800-XT',
     'https://www.alternate.be/Hardware/Grafische-kaarten/AMD/Radeon-RX/RX-6900-XT',
+    'https://www.alternate.be/Hardware/Grafische-kaarten/NVIDIA/RTX-3060-Ti',
     'https://www.alternate.be/Hardware/Grafische-kaarten/NVIDIA/RTX-3070',
     'https://www.alternate.be/Hardware/Grafische-kaarten/NVIDIA/RTX-3080',
     'https://www.alternate.be/Hardware/Grafische-kaarten/NVIDIA/RTX-3090',
@@ -69,31 +95,35 @@ urls = [
     'https://www.alternate.nl/Grafische-kaarten/RX-6800',
     'https://www.alternate.nl/Grafische-kaarten/RX-6800-XT',
     'https://www.alternate.nl/Grafische-kaarten/RX-6900-XT',
+    'https://www.alternate.nl/Grafische-kaarten/RTX-3060-Ti',
     'https://www.alternate.nl/Grafische-kaarten/RTX-3070',
     'https://www.alternate.nl/Grafische-kaarten/RTX-3080',
     'https://www.alternate.nl/Grafische-kaarten/RTX-3090',
+    'https://www.notebooksbilliger.de/pc+hardware/grafikkarten/nvidia/geforce+rtx+3060+ti+nvidia/page/1?sort=price&order=asc&availability=alle',
     'https://www.notebooksbilliger.de/pc+hardware/grafikkarten/nvidia/geforce+rtx+3070+nvidia/page/1?sort=price&order=asc&availability=alle',
     'https://www.notebooksbilliger.de/pc+hardware/grafikkarten/nvidia/geforce+rtx+3080+nvidia/page/1?sort=price&order=asc&availability=alle',
     'https://www.notebooksbilliger.de/pc+hardware/grafikkarten/nvidia/geforce+rtx+3090+nvidia/page/1?sort=price&order=asc&availability=alle',
     'https://www.notebooksbilliger.de/pc+hardware/grafikkarten+pc+hardware/amdati/rx+6800/page/1?sort=price&order=asc&availability=alle',
     'https://www.notebooksbilliger.de/pc+hardware/grafikkarten+pc+hardware/amdati/rx+6800+xt/page/1?sort=price&order=asc&availability=alle',
     'https://www.notebooksbilliger.de/pc+hardware/grafikkarten+pc+hardware/amdati/rx+6900+xt/page/1?sort=price&order=asc&availability=alle',
+    'https://www.mindfactory.de/Hardware/Grafikkarten+(VGA)/GeForce+RTX+fuer+Gaming/RTX+3060+ti.html/listing_sort/6',
     'https://www.mindfactory.de/Hardware/Grafikkarten+(VGA)/GeForce+RTX+fuer+Gaming/RTX+3070.html/listing_sort/6',
     'https://www.mindfactory.de/Hardware/Grafikkarten+(VGA)/GeForce+RTX+fuer+Gaming/RTX+3080.html/listing_sort/6',
     'https://www.mindfactory.de/Hardware/Grafikkarten+(VGA)/GeForce+RTX+fuer+Gaming/RTX+3090.html/listing_sort/6',
     'https://www.mindfactory.de/Hardware/Grafikkarten+(VGA)/Radeon+RX+Serie/RX+6800.html/listing_sort/6',
     'https://www.mindfactory.de/Hardware/Grafikkarten+(VGA)/Radeon+RX+Serie/RX+6800+XT.html/listing_sort/6',
     'https://www.mindfactory.de/Hardware/Grafikkarten+(VGA)/Radeon+RX+Serie/RX+6900+XT.html/listing_sort/6',
+    'https://www.caseking.de/pc-komponenten/grafikkarten/nvidia/geforce-rtx-3060-ti?p=1&l=list&sSort=3&n=48',
     'https://www.caseking.de/pc-komponenten/grafikkarten/nvidia/geforce-rtx-3070?p=1&l=list&sSort=3&n=48',
     'https://www.caseking.de/pc-komponenten/grafikkarten/nvidia/geforce-rtx-3080?p=1&l=list&sSort=3&n=48',
     'https://www.caseking.de/pc-komponenten/grafikkarten/nvidia/geforce-rtx-3090?p=1&l=list&sSort=3&n=48',
     'https://www.caseking.de/pc-komponenten/grafikkarten/amd/radeon-rx-6800?sPerPage=48&sPage=1&sSort=3',
     'https://www.caseking.de/pc-komponenten/grafikkarten/amd/radeon-rx-6800-xt?sPerPage=48&sPage=1&sSort=3',
     'https://www.caseking.de/pc-komponenten/grafikkarten/amd/radeon-rx-6900-xt?sPerPage=48&sPage=1&sSort=3',
-    'https://www.cyberport.de/pc-und-zubehoer/komponenten/grafikkarten/nvidia-fuer-gaming.html?productsPerPage=120&sort=popularity&2E_Grafikchip=GeForce%20RTX%203070,GeForce%20RTX%203080,GeForce%20RTX%203090&page=1',
+    'https://www.cyberport.de/pc-und-zubehoer/komponenten/grafikkarten/nvidia-fuer-gaming.html?productsPerPage=120&sort=popularity&2E_Grafikchip=GeForce%20RTX%203060%20Ti,GeForce%20RTX%203070,GeForce%20RTX%203080,GeForce%20RTX%203090&page=1',
     'https://www.cyberport.de/pc-und-zubehoer/komponenten/grafikkarten/amd-fuer-gaming.html?productsPerPage=120&sort=price_asc&2E_Grafikchip=Radeon%206800,Radeon%206800%20XT,Radeon%206900%20XT&page=1',
     'https://www.conrad.de/de/o/grafikkarten-amd-chipsatz-0414055.html?sort=Price-asc&tfo_ATT_LOV_GRAPHIC_CARD_MODELS=RX%206800%20XT~~~RX%206800~~~RX%206900%20XT',
-    'https://www.conrad.de/de/o/grafikkarten-nvidia-chipsatz-0414054.html?sort=Price-asc&tfo_ATT_LOV_GRAPHIC_CARD_MODELS=RTX%203070~~~RTX%203080~~~RTX%203090'
+    'https://www.conrad.de/de/o/grafikkarten-nvidia-chipsatz-0414054.html?sort=Price-asc&tfo_ATT_LOV_GRAPHIC_CARD_MODELS=RTX%203060%20Ti~~~RTX%203070~~~RTX%203080~~~RTX%203090'
 ]
 
 STRING_ALTERNATE_NL = 'alternate.nl'
@@ -171,12 +201,13 @@ def alternate(response, url):
         if BeautifulSoup(response.text, features="html.parser").findAll(class_=class_to_search).__len__() == 0:
             print("⚡ Request blocked. Trying with Selenium...")
             options = webdriver.ChromeOptions()
+            options.add_argument('--headless')
             options.add_argument('--no-proxy-server')
             options.add_argument("--window-position=-700,0")
             options.add_argument("--window-size=576,1024")
             options.add_argument('--blink-settings=imagesEnabled=false')
             # options.add_argument('user-data-dir=' + chrome_profile_path)
-            driver = webdriver.Chrome(options=options)
+            driver = webdriver.Chrome(executable_path=CRAWLER_DRIVER_PATH, options=options)
             try:
                 driver.get(url)
             except Exception as e:
@@ -242,12 +273,13 @@ def alternate_nl(response, url):
         if BeautifulSoup(response.text, features="html.parser").findAll(class_=class_to_search).__len__() == 0:
             print("⚡ Request blocked. Trying with Selenium...")
             options = webdriver.ChromeOptions()
+            options.add_argument('--headless')
             options.add_argument('--no-proxy-server')
             options.add_argument("--window-position=-700,0")
             options.add_argument("--window-size=576,1024")
             options.add_argument('--blink-settings=imagesEnabled=false')
             # options.add_argument('user-data-dir=' + chrome_profile_path)
-            driver = webdriver.Chrome(options=options)
+            driver = webdriver.Chrome(executable_path=CRAWLER_DRIVER_PATH, options=options)
             try:
                 driver.get(url)
             except Exception as e:
@@ -314,12 +346,13 @@ def alternate_be(response, url):
         if BeautifulSoup(response.text, features="html.parser").findAll(class_=class_to_search).__len__() == 0:
             print("⚡ Request blocked. Trying with Selenium...")
             options = webdriver.ChromeOptions()
+            options.add_argument('--headless')
             options.add_argument('--no-proxy-server')
             options.add_argument("--window-position=-700,0")
             options.add_argument("--window-size=576,1024")
             options.add_argument('--blink-settings=imagesEnabled=false')
             # options.add_argument('user-data-dir=' + chrome_profile_path)
-            driver = webdriver.Chrome(options=options)
+            driver = webdriver.Chrome(executable_path=CRAWLER_DRIVER_PATH, options=options)
             try:
                 driver.get(url)
             except Exception as e:
@@ -381,12 +414,13 @@ def mindfactory(response, url):
         if BeautifulSoup(response.text, features="html.parser").findAll(class_=class_to_search).__len__() == 0:
             print("⚡ Request blocked. Trying with Selenium...")
             options = webdriver.ChromeOptions()
+            options.add_argument('--headless')
             options.add_argument('--no-proxy-server')
             options.add_argument("--window-position=-700,0")
             options.add_argument("--window-size=576,1024")
             options.add_argument('--blink-settings=imagesEnabled=false')
             # options.add_argument('user-data-dir=' + chrome_profile_path)
-            driver = webdriver.Chrome(options=options)
+            driver = webdriver.Chrome(executable_path=CRAWLER_DRIVER_PATH, options=options)
             try:
                 driver.get(url)
             except Exception as e:
@@ -441,12 +475,13 @@ def notebooksbilliger(response, url):
         if BeautifulSoup(response.text, features="html.parser").findAll(class_=class_to_search).__len__() == 0:
             print("⚡ Request blocked. Trying with Selenium...")
             options = webdriver.ChromeOptions()
+            # options.add_argument('--headless')
             options.add_argument('--no-proxy-server')
             options.add_argument("--window-position=-700,0")
             options.add_argument("--window-size=576,1024")
             options.add_argument('--blink-settings=imagesEnabled=false')
             # options.add_argument('user-data-dir=' + chrome_profile_path)
-            driver = webdriver.Chrome(options=options)
+            driver = webdriver.Chrome(executable_path=CRAWLER_DRIVER_PATH, options=options)
             try:
                 driver.get(url)
             except Exception as e:
@@ -467,8 +502,8 @@ def notebooksbilliger(response, url):
                 maker = a.find(class_='short_description').find('li').text.strip().split('GeForce', 1)[0].strip()
                 maker = 'ZOTAC GAMING' if maker.upper().__contains__('ZOTAC') else maker
                 name = \
-                a.find(class_='short_description').find('li').text.strip().split(maker)[1].split('-', 1)[0].split(
-                    'GDDR', 1)[0].replace('Grafikkarte', '').strip()
+                    a.find(class_='short_description').find('li').text.strip().split(maker)[1].split('-', 1)[0].split(
+                        'GDDR', 1)[0].replace('Grafikkarte', '').strip()
                 chip = getChipName(name)
                 price = float(a.find(class_='product-price__regular').attrs['data-price'])
                 location = getDomainFromURL(url)
@@ -507,12 +542,13 @@ def caseking(response, url):
         if BeautifulSoup(response.text, features="html.parser").findAll(class_=class_to_search).__len__() == 0:
             print("⚡ Request blocked. Trying with Selenium...")
             options = webdriver.ChromeOptions()
+            options.add_argument('--headless')
             options.add_argument('--no-proxy-server')
             options.add_argument("--window-position=-700,0")
             options.add_argument("--window-size=576,1024")
             options.add_argument('--blink-settings=imagesEnabled=false')
             # options.add_argument('user-data-dir=' + chrome_profile_path)
-            driver = webdriver.Chrome(options=options)
+            driver = webdriver.Chrome(executable_path=CRAWLER_DRIVER_PATH, options=options)
             try:
                 driver.get(url)
             except Exception as e:
@@ -525,9 +561,10 @@ def caseking(response, url):
 
         try:
             for a in soup.findAll('div', attrs={'class': class_to_search}):
-                maker = soup.find(class_='ProductSubTitle').text.strip()
+                maker = a.find(class_='ProductSubTitle').text.strip()
                 maker = 'ZOTAC GAMING' if maker.upper().__contains__('ZOTAC') else maker
-                name = a.find(class_='ProductTitle').text.replace(maker, '').split(',', 1)[0].strip()
+                name = a.find(class_='ProductTitle').text.replace(maker, '').replace('GAMING', '').split(',', 1)[
+                    0].strip()
                 chip = getChipName(name)
                 price = float(a.find(class_='price').text.replace('.', '')
                               .replace('€', '').replace('*', '')
@@ -566,12 +603,13 @@ def cyberport(response, url):
         if BeautifulSoup(response.text, features="html.parser").findAll(class_=class_to_search).__len__() == 0:
             print("⚡ Request blocked. Trying with Selenium...")
             options = webdriver.ChromeOptions()
+            options.add_argument('--headless')
             options.add_argument('--no-proxy-server')
             options.add_argument("--window-position=-700,0")
             options.add_argument("--window-size=576,1024")
             options.add_argument('--blink-settings=imagesEnabled=false')
             # options.add_argument('user-data-dir=' + chrome_profile_path)
-            driver = webdriver.Chrome(options=options)
+            driver = webdriver.Chrome(executable_path=CRAWLER_DRIVER_PATH, options=options)
             try:
                 driver.get(url)
             except Exception as e:
@@ -638,7 +676,7 @@ def conrad(response, url):
             options.add_argument("--window-size=576,1024")
             options.add_argument('--blink-settings=imagesEnabled=false')
             # options.add_argument('user-data-dir=' + chrome_profile_path)
-            driver = webdriver.Chrome(options=options)
+            driver = webdriver.Chrome(executable_path=CRAWLER_DRIVER_PATH, options=options)
             try:
                 driver.get(url)
             except Exception as e:
@@ -662,9 +700,8 @@ def conrad(response, url):
             for a in soup.findAll(class_=class_to_search):
                 maker = a.find(class_='searchResult__header').text.split('Grafikkarte', 1)[0].strip()
                 maker = 'ZOTAC GAMING' if maker.upper().__contains__('ZOTAC') else maker
-                name = \
-                    a.find(class_='product__title').text.split(maker)[1].replace('Grafikkarte Nvidia ', '').replace(
-                        'Grafikkarte AMD Radeon ', '').strip()
+                name = a.find(class_='product__title').text.split('Grafikkarte')[1].replace('Nvidia ', '').replace(
+                    'AMD Radeon ', '').split('GDDR', 1)[0].strip()
                 chip = getChipName(name)
                 price = float(a.find(class_='product__currentPrice').text.replace('.', '').replace('€', '').replace('*',
                                                                                                                     '').replace(
@@ -742,17 +779,31 @@ def getDomainFromURL(url):
 
 def getChipName(name):
     chip = "N/A"
-    if name.__contains__("3600"):
-        if name.__contains__("Ti "):
+    if name.__contains__("3060"):
+        if name.__contains__("Ti ") or name.__contains__("TI "):
             chip = CHIP_NAME_3060Ti
         else:
             chip = CHIP_NAME_3060
     elif name.__contains__("3070"):
-        chip = CHIP_NAME_3070
+        if name.__contains__("Ti ") or name.__contains__("TI "):
+            chip = CHIP_NAME_3070Ti
+        else:
+            chip = CHIP_NAME_3070
     elif name.__contains__("3080"):
-        chip = CHIP_NAME_3080
+        if name.__contains__("Ti ") or name.__contains__("TI "):
+            chip = CHIP_NAME_3080Ti
+        else:
+            chip = CHIP_NAME_3080
     elif name.__contains__("3090"):
-        chip = CHIP_NAME_3090
+        if name.__contains__("Ti ") or name.__contains__("TI "):
+            chip = CHIP_NAME_3090Ti
+        else:
+            chip = CHIP_NAME_3090
+    elif name.__contains__("6700"):
+        if name.__contains__("XT "):
+            chip = CHIP_NAME_6700XT
+        else:
+            chip = CHIP_NAME_6700
     elif name.__contains__("6800"):
         if name.__contains__("XT "):
             chip = CHIP_NAME_6800XT
@@ -870,7 +921,8 @@ def main():
         examineProducts(goodPrices)
         SCRIPT_LAST_RUN_TIME = datetime.now().strftime("%d.%m.%Y at %H:%M:%S")
         if loop:
-            print("======================= Checking every " + CRAWL_WEBSITES_SCHEDULE.__str__() + " seconds ======================= ")
+            print(
+                "======================= Checking every " + CRAWL_WEBSITES_SCHEDULE.__str__() + " seconds ======================= ")
             time.sleep(CRAWL_WEBSITES_SCHEDULE - ((time.time() - start) % CRAWL_WEBSITES_SCHEDULE))
         else:
             print("========================================================================= ")
